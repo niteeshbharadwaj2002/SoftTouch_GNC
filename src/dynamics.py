@@ -3,21 +3,12 @@ from config import parameters as prm
 
 class RocketDynamics:
     def __init__(self, g=prm.G, isp=prm.ISP, g0=prm.G0):
-        """
-        g    : gravitational acceleration (m/s^2), acts in -y
-        isp  : specific impulse (s)
-        g0   : standard gravity for Isp->mdot conversion (m/s^2), keep separate from g
-        """
         self.g = g
         self.isp = isp
         self.g0 = g0
 
     def state_derivative(self, state, control):
-        """
-        state:   [x, y, vx, vy, m]
-        control: [Tx, Ty]  thrust components (N)
-        returns: d(state)/dt
-        """
+
         x, y, vx, vy, m = state
         Tx, Ty = control
 
@@ -47,16 +38,19 @@ class RocketDynamics:
         new_state[4] = max(new_state[4], 0.0)
         return new_state
 
+
     def simulate(self, initial_state, control_profile, dt, n_steps):
-        """
-        control_profile: array of shape (n_steps, 2) — [Tx, Ty] per step
-        returns: state history, shape (n_steps+1, 5)
-        """
         states = np.zeros((n_steps + 1, 5))
         states[0] = initial_state
 
         for i in range(n_steps):
-            states[i + 1] = self.step_rk4(states[i], control_profile[i], dt)
+            try:
+                states[i + 1] = self.step_rk4(states[i], control_profile[i], dt)
+            except ValueError:
+                # Fuel exhausted mid-step — truncate here, same idea as ground contact
+                states = states[: i + 1]
+                break
+
             if states[i + 1][1] <= 0:  # hit ground
                 states = states[: i + 2]
                 break
