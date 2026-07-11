@@ -37,3 +37,7 @@ TARGET_VY = 0.0
 DT = 0.1              # timestep (s)
 MAX_SIM_TIME = 60.0   # s, safety cap
 N_STEPS = int(MAX_SIM_TIME / DT)
+
+#Kalman Sensor Noise
+ALTIMETER_NOISE_STD = 0.5        # m
+ACCELEROMETER_NOISE_STD = 0.05   # m/s^2

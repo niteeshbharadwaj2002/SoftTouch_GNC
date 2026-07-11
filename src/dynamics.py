@@ -1,5 +1,6 @@
 import numpy as np
 from config import parameters as prm
+from src.kalman import sensor_model  # add to imports at top of file
 
 class RocketDynamics:
     def __init__(self):
@@ -79,3 +80,54 @@ class RocketDynamics:
                 break
 
         return actual_states, actual_controls
+    
+    def simulate_closed_loop_estimated(self, planned_states, planned_controls, controller,
+                                        kf, dt, wind_force=None, rng=None):
+
+        n_steps = len(planned_controls)
+        true_states = np.zeros((n_steps + 1, 5))
+        estimated_states = np.zeros((n_steps + 1, 4))
+        actual_controls = np.zeros((n_steps, 2))
+
+        true_states[0] = planned_states[0]
+        estimated_states[0] = kf.x_est.copy()
+
+        if rng is None:
+            rng = np.random.default_rng()
+
+        for i in range(n_steps):
+            # Controller acts on the ESTIMATE, with true mass (mass tracked
+            # exactly, not estimated — see kalman.py design notes)
+            estimate_with_mass = np.array([
+                kf.x_est[0], kf.x_est[1], kf.x_est[2], kf.x_est[3], true_states[i][4]
+            ])
+            u_corrected = controller.compute_control(
+                planned_state=planned_states[i],
+                actual_state=estimate_with_mass,
+                planned_control=planned_controls[i],
+            )
+
+            if wind_force is not None:
+                disturbance = wind_force(i, true_states[i])
+            else:
+                disturbance = np.array([0.0, 0.0])
+            u_applied = u_corrected + disturbance
+
+            actual_controls[i] = u_corrected  # log commanded thrust, pre-wind
+            true_states[i + 1] = self.step_rk4(true_states[i], u_applied, dt)
+
+            # Sensors read the TRUE post-step state; accelerometer senses
+            # total applied force (thrust + wind), not just commanded thrust
+            accel_meas, alt_meas = sensor_model(
+                true_states[i + 1], u_applied, mass=true_states[i][4], rng=rng
+            )
+            kf.step(accel_meas, alt_meas, dt)
+            estimated_states[i + 1] = kf.x_est.copy()
+
+            if true_states[i + 1][1] <= 0:  # hit ground
+                true_states = true_states[: i + 2]
+                estimated_states = estimated_states[: i + 2]
+                actual_controls = actual_controls[: i + 1]
+                break
+
+        return true_states, estimated_states, actual_controls

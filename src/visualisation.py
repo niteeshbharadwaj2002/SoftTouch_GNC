@@ -4,81 +4,115 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 
 
-def plot_trajectory(planned_states, actual_states=None, target=(0.0, 0.0), save_path=None):
+def plot_trajectory(planned_states, actual_states=None, estimated_states=None,
+                     target=(0.0, 0.0), save_path=None):
     """2D trajectory: downrange (x) vs altitude (y). X-axis symmetric about 0."""
     xp, yp = planned_states[:, 0], planned_states[:, 1]
+    has_actual = actual_states is not None
+    has_estimated = estimated_states is not None
 
     fig, ax = plt.subplots(figsize=(7, 6))
-    label = "Planned" if actual_states is not None else "Trajectory"
+    label = "Planned" if (has_actual or has_estimated) else "Trajectory"
     ax.plot(xp, yp, '-b', linewidth=2, label=label)
     ax.plot(xp[0], yp[0], 'go', markersize=10, label="Start")
     ax.plot(target[0], target[1], 'k^', markersize=10, label="Target")
 
     x_all = np.concatenate([xp, [target[0]]])
 
-    if actual_states is not None:
+    if has_actual:
         xa, ya = actual_states[:, 0], actual_states[:, 1]
         ax.plot(xa, ya, '-r', linewidth=2, label="Actual")
         ax.plot(xa[-1], ya[-1], 'rx', markersize=10, label="Actual Landing")
         x_all = np.concatenate([x_all, xa])
-    else:
+    elif not has_estimated:
         ax.plot(xp[-1], yp[-1], 'rx', markersize=10, label="Landing")
+
+    if has_estimated:
+        xe, ye = estimated_states[:, 0], estimated_states[:, 1]
+        ax.plot(xe, ye, '--g', linewidth=1.5, label="Estimated")
+        x_all = np.concatenate([x_all, xe])
 
     x_max_abs = np.abs(x_all).max()
     margin = x_max_abs * 0.15 if x_max_abs > 0 else 10.0
     ax.set_xlim(-x_max_abs - margin, x_max_abs + margin)
     ax.axvline(0, color='gray', linewidth=0.8, linestyle=':')
 
+    title_suffix = ""
+    if has_actual and has_estimated:
+        title_suffix = ": Planned vs Actual vs Estimated"
+    elif has_actual:
+        title_suffix = ": Planned vs Actual"
+    elif has_estimated:
+        title_suffix = ": Planned vs Estimated"
+
     ax.set_xlabel("Downrange x (m)")
     ax.set_ylabel("Altitude y (m)")
-    ax.set_title("Rocket Trajectory" + (": Planned vs Actual" if actual_states is not None else ""))
+    ax.set_title("Rocket Trajectory" + title_suffix)
     ax.legend()
     ax.grid(True)
     ax.set_aspect('auto')
     _save_or_show(fig, save_path)
 
 
-def plot_altitude_vs_time(planned_states, actual_states=None, dt=0.1, save_path=None):
+def plot_altitude_vs_time(planned_states, actual_states=None, estimated_states=None,
+                           dt=0.1, save_path=None):
     tp = np.arange(len(planned_states)) * dt
+    has_actual = actual_states is not None
+    has_estimated = estimated_states is not None
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    label = "Planned" if actual_states is not None else "Altitude"
+    label = "Planned" if (has_actual or has_estimated) else "Altitude"
     ax.plot(tp, planned_states[:, 1], '-b', label=label)
 
-    if actual_states is not None:
+    if has_actual:
         ta = np.arange(len(actual_states)) * dt
         ax.plot(ta, actual_states[:, 1], '-r', label="Actual")
 
+    if has_estimated:
+        te = np.arange(len(estimated_states)) * dt
+        ax.plot(te, estimated_states[:, 1], '--g', label="Estimated")
+
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Altitude y (m)")
-    ax.set_title("Altitude vs Time" + (": Planned vs Actual" if actual_states is not None else ""))
+    title_suffix = _comparison_suffix(has_actual, has_estimated)
+    ax.set_title("Altitude vs Time" + title_suffix)
     ax.legend()
     ax.grid(True)
     _save_or_show(fig, save_path)
 
 
-def plot_velocity(planned_states, actual_states=None, dt=0.1, save_path=None):
+def plot_velocity(planned_states, actual_states=None, estimated_states=None,
+                   dt=0.1, save_path=None):
     """Vx and Vy vs time."""
     tp = np.arange(len(planned_states)) * dt
+    has_actual = actual_states is not None
+    has_estimated = estimated_states is not None
 
-    if actual_states is not None:
-        ta = np.arange(len(actual_states)) * dt
+    if has_actual or has_estimated:
         fig, axs = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
 
         axs[0].plot(tp, planned_states[:, 2], '-b', label="Planned Vx")
-        axs[0].plot(ta, actual_states[:, 2], '-r', label="Actual Vx")
+        if has_actual:
+            ta = np.arange(len(actual_states)) * dt
+            axs[0].plot(ta, actual_states[:, 2], '-r', label="Actual Vx")
+        if has_estimated:
+            te = np.arange(len(estimated_states)) * dt
+            axs[0].plot(te, estimated_states[:, 2], '--g', label="Estimated Vx")
         axs[0].set_ylabel("Vx (m/s)")
         axs[0].legend()
         axs[0].grid(True)
 
         axs[1].plot(tp, planned_states[:, 3], '-b', label="Planned Vy")
-        axs[1].plot(ta, actual_states[:, 3], '-r', label="Actual Vy")
+        if has_actual:
+            axs[1].plot(ta, actual_states[:, 3], '-r', label="Actual Vy")
+        if has_estimated:
+            axs[1].plot(te, estimated_states[:, 3], '--g', label="Estimated Vy")
         axs[1].set_xlabel("Time (s)")
         axs[1].set_ylabel("Vy (m/s)")
         axs[1].legend()
         axs[1].grid(True)
 
-        fig.suptitle("Velocity: Planned vs Actual")
+        fig.suptitle("Velocity" + _comparison_suffix(has_actual, has_estimated))
     else:
         fig, ax = plt.subplots(figsize=(7, 4))
         ax.plot(tp, planned_states[:, 2], label="Vx")
@@ -93,7 +127,8 @@ def plot_velocity(planned_states, actual_states=None, dt=0.1, save_path=None):
 
 
 def plot_mass(planned_states, actual_states=None, dt=0.1, dry_mass=None, save_path=None):
-    """Total mass vs time, with optional dry-mass reference line."""
+    """Total mass vs time, with optional dry-mass reference line.
+    No estimated_states param — mass is not part of the Kalman state."""
     tp = np.arange(len(planned_states)) * dt
 
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -117,7 +152,7 @@ def plot_mass(planned_states, actual_states=None, dt=0.1, dry_mass=None, save_pa
 
 def plot_thrust(planned_controls, actual_controls=None, dt=0.1,
                  max_thrust=None, min_thrust=None, save_path=None):
-    """Thrust magnitude vs time, with optional throttle bounds."""
+    """Thrust magnitude vs time. No estimated variant — thrust isn't estimated."""
     planned_controls = np.asarray(planned_controls)
     tp = np.arange(len(planned_controls)) * dt
     planned_mag = np.hypot(planned_controls[:, 0], planned_controls[:, 1])
@@ -169,29 +204,39 @@ def plot_thrust_angle(planned_controls, actual_controls=None, dt=0.1, save_path=
     _save_or_show(fig, save_path)
 
 
-def plot_distance_to_target(planned_states, actual_states=None, target=(0.0, 0.0), dt=0.1, save_path=None):
+def plot_distance_to_target(planned_states, actual_states=None, estimated_states=None,
+                             target=(0.0, 0.0), dt=0.1, save_path=None):
     tp = np.arange(len(planned_states)) * dt
+    has_actual = actual_states is not None
+    has_estimated = estimated_states is not None
     dist_planned = np.hypot(planned_states[:, 0] - target[0], planned_states[:, 1] - target[1])
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    label = "Planned" if actual_states is not None else "Distance to target"
+    label = "Planned" if (has_actual or has_estimated) else "Distance to target"
     ax.plot(tp, dist_planned, '-b', label=label)
 
-    if actual_states is not None:
+    if has_actual:
         ta = np.arange(len(actual_states)) * dt
         dist_actual = np.hypot(actual_states[:, 0] - target[0], actual_states[:, 1] - target[1])
         ax.plot(ta, dist_actual, '-r', label="Actual")
+
+    if has_estimated:
+        te = np.arange(len(estimated_states)) * dt
+        dist_estimated = np.hypot(estimated_states[:, 0] - target[0], estimated_states[:, 1] - target[1])
+        ax.plot(te, dist_estimated, '--g', label="Estimated")
+
+    if has_actual or has_estimated:
         ax.legend()
 
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Distance to target (m)")
-    ax.set_title("Distance to Target vs Time" + (": Planned vs Actual" if actual_states is not None else ""))
+    ax.set_title("Distance to Target vs Time" + _comparison_suffix(has_actual, has_estimated))
     ax.grid(True)
     _save_or_show(fig, save_path)
 
 
 def plot_mass_flow_rate(planned_states, actual_states=None, dt=0.1, save_path=None):
-    """mdot vs time — derivative of mass curve, sanity-check against thrust profile."""
+    """mdot vs time — no estimated variant, mass isn't part of Kalman state."""
     tp = np.arange(len(planned_states) - 1) * dt
     mdot_planned = np.diff(planned_states[:, 4]) / dt
 
@@ -214,9 +259,8 @@ def plot_mass_flow_rate(planned_states, actual_states=None, dt=0.1, save_path=No
 
 def plot_tracking_error(planned_states, actual_states, dt, save_path=None):
     """
-    Position tracking error between guidance plan and actual closed-loop
-    trajectory. Requires both — there's no meaningful "error" with a
-    single trajectory, so actual_states is NOT optional here.
+    Position tracking error between guidance plan and actual (true) closed-
+    loop trajectory. Requires both — no meaningful "error" with one trajectory.
     """
     n = min(len(planned_states), len(actual_states))
     t = np.arange(n) * dt
@@ -234,27 +278,60 @@ def plot_tracking_error(planned_states, actual_states, dt, save_path=None):
     _save_or_show(fig, save_path)
 
 
+def plot_estimation_error(true_states, estimated_states, dt, save_path=None):
+    n = min(len(true_states), len(estimated_states))
+    t = np.arange(n) * dt
+
+    error_x = estimated_states[:n, 0] - true_states[:n, 0]
+    error_y = estimated_states[:n, 1] - true_states[:n, 1]
+
+    fig, axs = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    axs[0].plot(t, error_x, '-m')
+    axs[0].axhline(0, color='k', linewidth=0.5)
+    axs[0].set_ylabel("x error (m)")
+    axs[0].set_title("Kalman Estimation Error: x (unobserved) vs y (observed)")
+    axs[0].grid(True)
+
+    axs[1].plot(t, error_y, '-g')
+    axs[1].axhline(0, color='k', linewidth=0.5)
+    axs[1].set_xlabel("Time (s)")
+    axs[1].set_ylabel("y error (m)")
+    axs[1].grid(True)
+
+    _save_or_show(fig, save_path)
+
+
 def plot_summary(planned_states, planned_controls, dt, actual_states=None, actual_controls=None,
-                  target=(0.0, 0.0), max_thrust=None, min_thrust=None, dry_mass=None, save_path=None):
-    """One figure, multiple subplots — quick full-run overview. Works single-trajectory
-    (actual_states=None) or as a planned-vs-actual comparison."""
+                  estimated_states=None, target=(0.0, 0.0), max_thrust=None, min_thrust=None,
+                  dry_mass=None, save_path=None):
+    """One figure, multiple subplots — quick full-run overview. Works single-trajectory,
+    planned-vs-actual, or full planned-vs-actual-vs-estimated."""
     tp_states = np.arange(len(planned_states)) * dt
     planned_controls = np.asarray(planned_controls)
     tp_control = np.arange(len(planned_controls)) * dt
     planned_thrust_mag = np.hypot(planned_controls[:, 0], planned_controls[:, 1])
 
     has_actual = actual_states is not None
+    has_estimated = estimated_states is not None
+
     if has_actual:
         ta_states = np.arange(len(actual_states)) * dt
         actual_controls = np.asarray(actual_controls)
         ta_control = np.arange(len(actual_controls)) * dt
         actual_thrust_mag = np.hypot(actual_controls[:, 0], actual_controls[:, 1])
 
+    if has_estimated:
+        te_states = np.arange(len(estimated_states)) * dt
+
     fig, axs = plt.subplots(2, 3, figsize=(16, 9))
 
-    axs[0, 0].plot(planned_states[:, 0], planned_states[:, 1], '-b', label="Planned" if has_actual else None)
+    axs[0, 0].plot(planned_states[:, 0], planned_states[:, 1], '-b',
+                   label="Planned" if (has_actual or has_estimated) else None)
     if has_actual:
         axs[0, 0].plot(actual_states[:, 0], actual_states[:, 1], '-r', label="Actual")
+    if has_estimated:
+        axs[0, 0].plot(estimated_states[:, 0], estimated_states[:, 1], '--g', label="Estimated")
+    if has_actual or has_estimated:
         axs[0, 0].legend()
     axs[0, 0].plot(target[0], target[1], 'k^', markersize=10)
     axs[0, 0].set_title("Trajectory (x vs y)")
@@ -266,6 +343,9 @@ def plot_summary(planned_states, planned_controls, dt, actual_states=None, actua
     if has_actual:
         axs[0, 1].plot(ta_states, actual_states[:, 2], '--r', label="Actual Vx")
         axs[0, 1].plot(ta_states, actual_states[:, 3], '-r', label="Actual Vy")
+    if has_estimated:
+        axs[0, 1].plot(te_states, estimated_states[:, 2], ':g', label="Est Vx")
+        axs[0, 1].plot(te_states, estimated_states[:, 3], '--g', label="Est Vy")
     axs[0, 1].set_title("Velocity vs Time")
     axs[0, 1].legend(fontsize=7); axs[0, 1].grid(True)
 
@@ -288,14 +368,26 @@ def plot_summary(planned_states, planned_controls, dt, actual_states=None, actua
     axs[1, 0].legend(); axs[1, 0].grid(True)
 
     dist_planned = np.hypot(planned_states[:, 0] - target[0], planned_states[:, 1] - target[1])
-    axs[1, 1].plot(tp_states, dist_planned, '-b', label="Planned" if has_actual else "Distance")
+    axs[1, 1].plot(tp_states, dist_planned, '-b', label="Planned" if (has_actual or has_estimated) else "Distance")
     if has_actual:
         dist_actual = np.hypot(actual_states[:, 0] - target[0], actual_states[:, 1] - target[1])
         axs[1, 1].plot(ta_states, dist_actual, '-r', label="Actual")
+    if has_estimated:
+        dist_est = np.hypot(estimated_states[:, 0] - target[0], estimated_states[:, 1] - target[1])
+        axs[1, 1].plot(te_states, dist_est, '--g', label="Estimated")
     axs[1, 1].set_title("Distance to Target vs Time")
     axs[1, 1].legend(); axs[1, 1].grid(True)
 
-    if has_actual:
+    if has_actual and has_estimated:
+        n = min(len(true_states) if False else len(actual_states), len(estimated_states))
+        t_err = np.arange(n) * dt
+        err_x = estimated_states[:n, 0] - actual_states[:n, 0]
+        err_y = estimated_states[:n, 1] - actual_states[:n, 1]
+        axs[1, 2].plot(t_err, err_x, '-m', label="x err (est)")
+        axs[1, 2].plot(t_err, err_y, '-g', label="y err (est)")
+        axs[1, 2].legend(fontsize=7)
+        axs[1, 2].set_title("Estimation Error vs Time")
+    elif has_actual:
         n = min(len(planned_states), len(actual_states))
         t_err = np.arange(n) * dt
         error = np.hypot(planned_states[:n, 0] - actual_states[:n, 0],
@@ -309,6 +401,16 @@ def plot_summary(planned_states, planned_controls, dt, actual_states=None, actua
 
     fig.tight_layout()
     _save_or_show(fig, save_path)
+
+
+def _comparison_suffix(has_actual, has_estimated):
+    if has_actual and has_estimated:
+        return ": Planned vs Actual vs Estimated"
+    if has_actual:
+        return ": Planned vs Actual"
+    if has_estimated:
+        return ": Planned vs Estimated"
+    return ""
 
 
 def _save_or_show(fig, save_path):
