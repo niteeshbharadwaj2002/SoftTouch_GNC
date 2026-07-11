@@ -10,12 +10,12 @@ DRY_MASS = 1500.0     # kg, mass without fuel
 FUEL_MASS = 500.0     # kg, initial propellant mass
 WET_MASS = DRY_MASS + FUEL_MASS   # kg, total initial mass
 
-MAX_THRUST = 24000.0   # N, per-engine or total max thrust
+MAX_THRUST = 35000.0   # N, per-engine or total max thrust
 MIN_THRUST = 6000.0    # N, minimum throttle (engines can't go to zero)
 
 # --- Initial Conditions ---
 INITIAL_ALTITUDE = 1500.0   # m
-INITIAL_DOWNRANGE = 500.0   # m
+INITIAL_DOWNRANGE = -200.0   # m
 INITIAL_VX = -30.0           # m/s (toward target)
 INITIAL_VY = -80.0           # m/s (descending, negative = downward)
 
