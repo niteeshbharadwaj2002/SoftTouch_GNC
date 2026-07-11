@@ -5,6 +5,7 @@ from src.optimiser import GuidanceOptimizer
 from src.controls import LQRController
 from src.kalman import KalmanFilter
 from src import visualisation as viz
+from src import animate 
 from config import parameters as prm
 
 
@@ -122,6 +123,16 @@ def main():
     print("Plotting Kalman estimation error (x unobserved vs y observed)...")
     viz.plot_estimation_error(true_states, estimated_states, dt=DT_GUIDANCE)
 
+
+    #Animation
+    print("\nGenerating animations for README...")
+    animate.animate_trajectory(planned_states, true_states, estimated_states,
+                                target=target, dt=DT_GUIDANCE, save_path="results/animate/trajectory.gif")
+    animate.animate_dashboard(planned_states, planned_controls, DT_GUIDANCE,
+                            actual_states=true_states, actual_controls=actual_controls,
+                            estimated_states=estimated_states, target=target,
+                            save_path="results/animate/dashboard.gif")
+    
 
 if __name__ == "__main__":
     main()
