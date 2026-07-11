@@ -50,3 +50,32 @@ class RocketDynamics:
                 break
 
         return states
+    
+    def simulate_closed_loop(self, planned_states, planned_controls, controller, dt,
+                          wind_force=None):
+        n_steps = len(planned_controls)
+        actual_states = np.zeros((n_steps + 1, 5))
+        actual_controls = np.zeros((n_steps, 2))
+        actual_states[0] = planned_states[0]
+
+        for i in range(n_steps):
+            u_corrected = controller.compute_control(
+                planned_state=planned_states[i],
+                actual_state=actual_states[i],
+                planned_control=planned_controls[i],)
+
+            if wind_force is not None:
+                disturbance = wind_force(i, actual_states[i])
+                u_applied = u_corrected + disturbance
+            else:
+                u_applied = u_corrected
+
+            actual_controls[i] = u_corrected  # log controller's commanded thrust, pre-wind
+            actual_states[i + 1] = self.step_rk4(actual_states[i], u_applied, dt)
+
+            if actual_states[i + 1][1] <= 0:  # hit ground
+                actual_states = actual_states[: i + 2]
+                actual_controls = actual_controls[: i + 1]
+                break
+
+        return actual_states, actual_controls

@@ -1,33 +1,16 @@
 import numpy as np
 
 from src.dynamics import RocketDynamics
-from src import visualisation as viz
-from config import parameters as prm
-
-
-"""
-main.py
-Entry point — wires guidance (convex optimization) -> dynamics (validation)
--> visualization together.
-
-Guidance solves for the fuel-optimal reference trajectory from the fixed
-initial conditions in config/params.py. That thrust profile is then run
-back through the actual RK4 dynamics model as an open-loop check —
-confirms the guidance solution is physically consistent, not just
-optimal under its own (Euler-discretized) approximation. Control/LQR
-tracking comes in this afternoon; this is still open-loop.
-"""
-
-import numpy as np
-
-from src.dynamics import RocketDynamics
 from src.optimiser import GuidanceOptimizer
+from src.controls import LQRController
 from src import visualisation as viz
 from config import parameters as prm
 
 
 def main():
-
+    # ------------------------------------------------------------------
+    # 1. Guidance Path
+    # ------------------------------------------------------------------
     N_GUIDANCE = 120
     DT_GUIDANCE = 0.5  # 30s fixed final time
 
@@ -40,59 +23,83 @@ def main():
 
     if result["status"] not in ("optimal", "optimal_inaccurate"):
         print(f"Guidance failed to converge: {result['status']}")
-        print("Try increasing N_GUIDANCE/DT_GUIDANCE (more time) or check "
-              "MAX_THRUST vs initial velocity/altitude for feasibility.")
+        print("Try increasing N_GUIDANCE/DT_GUIDANCE, or check MAX_THRUST "
+              "vs initial velocity/altitude for feasibility.")
         return
 
     print(f"Guidance solved: status = {result['status']}")
 
     planned_states = optimizer.to_state_trajectory(result)
-    control_profile = optimizer.to_control_profile(result)
+    planned_controls = optimizer.to_control_profile(result)
 
-    fuel_used = planned_states[0, 4] - planned_states[-1, 4]
-    print(f"Planned fuel use: {fuel_used:.1f} kg "
+    planned_fuel_used = planned_states[0, 4] - planned_states[-1, 4]
+    print(f"Planned fuel use: {planned_fuel_used:.1f} kg "
           f"(of {prm.FUEL_MASS:.1f} kg available)")
-    print(f"Planned landing: x={planned_states[-1,0]:.2f}, "
-          f"y={planned_states[-1,1]:.2f}, "
-          f"vx={planned_states[-1,2]:.2f}, vy={planned_states[-1,3]:.2f}")
 
-    # Guidance Validation
+    # ------------------------------------------------------------------
+    # 2. Closed-loop LQR
+    # ------------------------------------------------------------------
     dynamics = RocketDynamics()
-    actual_states = dynamics.simulate(
-        initial_state=np.array(initial_state),
-        control_profile=control_profile,
-        dt=DT_GUIDANCE,
-        n_steps=N_GUIDANCE,
+    controller = LQRController()
+
+    gust_start = N_GUIDANCE // 3
+    gust_end = N_GUIDANCE // 2
+    gust_force = np.array([3000.0, 0.0])  # N, steady horizontal push during gust
+
+    def wind_gust(step, state):
+        if gust_start <= step < gust_end:
+            return gust_force
+        return np.array([0.0, 0.0])
+
+    print(f"\nSimulating closed-loop descent with wind gust "
+          f"(steps {gust_start}-{gust_end}, {gust_force[0]:.0f}N horizontal)...")
+
+    actual_states, actual_controls = dynamics.simulate_closed_loop(
+        planned_states, planned_controls, controller, DT_GUIDANCE,
+        wind_force=wind_gust,
     )
 
-    print(f"\nActual (RK4) landing: x={actual_states[-1,0]:.2f}, "
-          f"y={actual_states[-1,1]:.2f}, "
-          f"vx={actual_states[-1,2]:.2f}, vy={actual_states[-1,3]:.2f}")
+    actual_fuel_used = actual_states[0, 4] - actual_states[-1, 4]
+    print(f"Actual fuel use: {actual_fuel_used:.1f} kg")
 
-    landing_error = np.hypot(
-        actual_states[-1, 0] - planned_states[-1, 0],
-        actual_states[-1, 1] - planned_states[-1, 1],
+    # ------------------------------------------------------------------
+    # 3. Compare planned vs actual
+    # ------------------------------------------------------------------
+    n = min(len(planned_states), len(actual_states))
+    tracking_error = np.hypot(
+        planned_states[:n, 0] - actual_states[:n, 0],
+        planned_states[:n, 1] - actual_states[:n, 1],
     )
-    print(f"Guidance-vs-actual landing position discrepancy: {landing_error:.3f} m "
-          f"(expected small — Euler vs RK4 discretization difference; "
-          f"this is exactly the gap the controller will need to correct "
-          f"once real-world disturbances are added)")
+    final_landing_error = np.hypot(
+        actual_states[-1, 0] - prm.TARGET_X,
+        actual_states[-1, 1] - prm.TARGET_Y,
+    )
 
-    # --- Visualization ---
+    print(f"\n--- Results ---")
+    print(f"Planned landing:  x={planned_states[-1,0]:.2f}, y={planned_states[-1,1]:.2f}")
+    print(f"Actual landing:   x={actual_states[-1,0]:.2f}, y={actual_states[-1,1]:.2f}")
+    print(f"Landing accuracy (distance from target): {final_landing_error:.2f} m")
+    print(f"Max tracking error during flight: {np.max(tracking_error):.2f} m")
+    print(f"Fuel used vs planned: {actual_fuel_used:.1f} kg vs {planned_fuel_used:.1f} kg "
+          f"({actual_fuel_used - planned_fuel_used:+.1f} kg)")
+
+    # ------------------------------------------------------------------
+    # 4. Visualization: planned vs actual, overlaid in single calls
+    # ------------------------------------------------------------------
     target = (prm.TARGET_X, prm.TARGET_Y)
 
-    print("\nPlotting guidance (planned) trajectory...")
-    viz.plot_trajectory(planned_states, target=target)
-    viz.plot_altitude_vs_time(planned_states, dt=DT_GUIDANCE)
-    viz.plot_velocity(planned_states, dt=DT_GUIDANCE)
-    viz.plot_mass(planned_states, dt=DT_GUIDANCE, dry_mass=prm.DRY_MASS)
-    viz.plot_distance_to_target(planned_states, target=target, dt=DT_GUIDANCE)
-    viz.plot_thrust(control_profile, dt=DT_GUIDANCE,
+    print("\nPlotting comparison plots (Blue=Planned, Red=Actual)...")
+    viz.plot_trajectory(planned_states, actual_states, target=target)
+    viz.plot_altitude_vs_time(planned_states, actual_states, dt=DT_GUIDANCE)
+    viz.plot_velocity(planned_states, actual_states, dt=DT_GUIDANCE)
+    viz.plot_mass(planned_states, actual_states, dt=DT_GUIDANCE, dry_mass=prm.DRY_MASS)
+    viz.plot_thrust(planned_controls, actual_controls, dt=DT_GUIDANCE,
                      max_thrust=prm.MAX_THRUST, min_thrust=prm.MIN_THRUST)
-    viz.plot_thrust_angle(control_profile, dt=DT_GUIDANCE)
+    viz.plot_thrust_angle(planned_controls, actual_controls, dt=DT_GUIDANCE)
+    viz.plot_distance_to_target(planned_states, actual_states, target=target, dt=DT_GUIDANCE)
 
-    print("Plotting actual (RK4-propagated) trajectory...")
-    viz.plot_trajectory(actual_states, target=target)
+    print("Plotting tracking error...")
+    viz.plot_tracking_error(planned_states, actual_states, dt=DT_GUIDANCE)
 
 
 if __name__ == "__main__":
