@@ -1,4 +1,4 @@
-#!/home/niteesh/Desktop/Rocket_Landing_GNC_using_Convex_Optimizer-/venv/bin/python3
+#!/home/niteesh/Desktop/Rocket_Landing_GNC_using_Convex_Optimizer-/venv/bin/python
 import sys
 from numpy._configtool import main
 if __name__ == '__main__':

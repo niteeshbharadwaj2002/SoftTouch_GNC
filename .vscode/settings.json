@@ -1,0 +1,5 @@
+{
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.terminal.executeInFileDir": False,
+    "terminal.integrated.cwd": "${workspaceFolder}"
+}
