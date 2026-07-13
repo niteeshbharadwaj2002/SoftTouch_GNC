@@ -48,7 +48,7 @@ def main():
 
     gust_start = N_GUIDANCE // 3
     gust_end = N_GUIDANCE // 2
-    gust_force = np.array([3000.0, 0.0])  # N, steady horizontal push during gust
+    gust_force = np.array([-300.0, 200])  # N, steady horizontal push during gust
 
     def wind_gust(step, state):
         if gust_start <= step < gust_end:
@@ -84,9 +84,15 @@ def main():
     est_error_y = np.abs(estimated_states[:n_est, 1] - true_states[:n_est, 1])
     std_x_final, std_y_final = kf.position_std()
 
+    true_terminal_speed = np.hypot(true_states[-1, 2], true_states[-1, 3])
+    planned_terminal_speed = np.hypot(planned_states[-1, 2], planned_states[-1, 3])
+
     print(f"\n--- Results ---")
-    print(f"Planned landing:   x={planned_states[-1,0]:.2f}, y={planned_states[-1,1]:.2f}")
-    print(f"True landing:      x={true_states[-1,0]:.2f}, y={true_states[-1,1]:.2f}")
+    print(f"Planned landing:   x={planned_states[-1,0]:.2f}, y={planned_states[-1,1]:.2f}, "
+          f"speed={planned_terminal_speed:.2f} m/s")
+    print(f"True landing:      x={true_states[-1,0]:.2f}, y={true_states[-1,1]:.2f}, "
+          f"speed={true_terminal_speed:.2f} m/s, steps={len(true_states)-1} "
+          f"(planned horizon={N_GUIDANCE})")
     print(f"Landing accuracy (true, from target): {final_landing_error:.2f} m")
     print(f"Max tracking error during flight: {np.max(tracking_error):.2f} m")
     print(f"Fuel used vs planned: {actual_fuel_used:.1f} kg vs {planned_fuel_used:.1f} kg "
@@ -127,11 +133,11 @@ def main():
     #Animation
     print("\nGenerating animations for README...")
     animate.animate_trajectory(planned_states, true_states, estimated_states,
-                                target=target, dt=DT_GUIDANCE, save_path="results/animate/trajectory.gif")
+                                target=target, dt=DT_GUIDANCE, save_path="results/animate/trajectory_1.gif")
     animate.animate_dashboard(planned_states, planned_controls, DT_GUIDANCE,
                             actual_states=true_states, actual_controls=actual_controls,
                             estimated_states=estimated_states, target=target,
-                            save_path="results/animate/dashboard.gif")
+                            save_path="results/animate/dashboard_1.gif")
     
 
 if __name__ == "__main__":

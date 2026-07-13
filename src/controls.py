@@ -6,7 +6,12 @@ from config import parameters as prm
 class LQRController:
     def __init__(self, Q=None, R=None):
 
-        self.Q = Q if Q is not None else np.diag([10.0, 10.0, 5.0, 5.0])
+        # State order: [x, y, vx, vy]. y/vy (altitude/vertical speed) are
+        # already tracked tightly — they have to be, or the vehicle crashes —
+        # so x/vx (downrange position/velocity, the axis that actually drifts
+        # under wind) are weighted higher to claim more of the shared thrust
+        # budget whenever there's margin left over from vertical braking.
+        self.Q = Q if Q is not None else np.diag([20.0, 10.0, 25.0, 15.0])
         self.R = R if R is not None else np.diag([0.001, 0.001])
         self.g = prm.G
         self.max_thrust = prm.MAX_THRUST

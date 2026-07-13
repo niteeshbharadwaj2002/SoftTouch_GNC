@@ -16,8 +16,8 @@ MIN_THRUST = 6000.0    # N, minimum throttle (engines can't go to zero)
 # --- Initial Conditions ---
 INITIAL_ALTITUDE = 1500.0   # m
 INITIAL_DOWNRANGE = -200.0   # m
-INITIAL_VX = -30.0           # m/s (toward target)
-INITIAL_VY = -80.0           # m/s (descending, negative = downward)
+INITIAL_VX =  10.0           # m/s (toward target)
+INITIAL_VY =  -40.0           # m/s (descending, negative = downward)
 
 INITIAL_STATE = [
     INITIAL_DOWNRANGE,   # x
