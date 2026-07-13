@@ -1,5 +1,5 @@
 import numpy as np
-from config import parameters as prm
+import config.parameters as prm
 from src.kalman import sensor_model  # add to imports at top of file
 
 class RocketDynamics:
