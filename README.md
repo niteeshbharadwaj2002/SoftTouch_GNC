@@ -8,13 +8,13 @@
 
 ## Demo
 
-![Trajectory animation](results/animate/trajectory.gif)
+![Trajectory animation](results/animate/trajectory_1.gif)
 
 **Landing accuracy:** `9.70 m` &nbsp;|&nbsp; **Fuel used vs. planned:** `431.6 kg vs 432.1 kg (−0.1%)` &nbsp;|&nbsp; **Max tracking error under wind gust:** `38.26 m`
 
 Full dashboard (trajectory + altitude + velocity + thrust + mass, planned vs. true vs. estimated):
 
-![Dashboard animation](results/animate/dashboard.gif)
+![Dashboard animation](results/animate/dashboard_1.gif)
 
 ---
 
