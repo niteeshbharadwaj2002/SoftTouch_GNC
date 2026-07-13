@@ -48,7 +48,7 @@ def main():
 
     gust_start = N_GUIDANCE // 3
     gust_end = N_GUIDANCE // 2
-    gust_force = np.array([-300.0, 200])  # N, steady horizontal push during gust
+    gust_force = np.array([-3000.0, -1000])  # N, steady horizontal push during gust
 
     def wind_gust(step, state):
         if gust_start <= step < gust_end:
