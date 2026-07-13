@@ -1,4 +1,4 @@
-# Rocket Powered-Descent Landing GNC
+# SoftTouch GNC
 
 3-DOF simulation of Falcon-9-style powered descent using convex optimization guidance, LQR closed-loop tracking control, and Kalman state estimation under sensor noise and wind disturbance.
 
