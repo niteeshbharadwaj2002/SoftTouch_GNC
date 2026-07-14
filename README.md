@@ -20,15 +20,15 @@ Full dashboard (trajectory + altitude + velocity + thrust + mass, planned vs. tr
 
 ## Problem Statement
 
-A rocket booster descends from altitude with significant downrange offset and lateral/vertical velocity, and must reach a soft, pinpoint landing at a target pad while minimizing propellant consumption, subject to hard thrust limits (an engine that cannot throttle to zero, and cannot exceed max thrust).
+A rocket booster descends from altitude with significant downrange offset and vertical velocity, and must reach a soft, pinpoint landing at a target pad while minimizing propellant consumption, subject to hard thrust limits (an engine that cannot throttle to zero, and cannot exceed max thrust).
 
 Modeled as: **3-DOF, planar (x-y), point-mass, variable-mass** — no attitude/rotation dynamics, thrust vector applied directly at the center of mass.
 
-This is a compact version of the guidance-and-control problem SpaceX solves operationally on every Falcon 9 first-stage landing: fuel-optimal trajectory planning under hard thrust constraints, tracked in closed loop against real-world disturbances and sensor noise.
+This is a compact version of the guidance-and-control problem SpaceX solves operationally on every Falcon 9 first stage landing: fuel optimal trajectory planning under hard thrust constraints, tracked in closed loop against real-world disturbances and sensor noise.
 
 ## Why This Matters
 
-The guidance layer here mirrors **Lossless Convexification** (Açıkmeşe & Blackmore, 2007+), the technique developed for real-time powered-descent guidance that reformulates the non-convex minimum-fuel landing problem — non-convex because of the thrust lower bound and the nonlinear thrust-magnitude constraint — into a convex second-order cone program that solves reliably and fast enough to run onboard. That reformulation is the core technical idea implemented in `src/optimiser.py`, not just "call a solver and hope."
+The guidance layer here mirrors **Lossless Convexification** (Açıkmeşe & Blackmore, 2007+), the technique developed for real-time powered-descent guidance that reformulates the non-convex minimum-fuel landing problem into a convex second-order cone program that solves reliably and fast enough to run onboard. That reformulation is the core technical idea implemented in `src/optimiser.py`, not just "call a solver and hope."
 
 ## System Architecture
 
