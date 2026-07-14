@@ -80,8 +80,8 @@ Run tests: `pytest tests/`
 
 ## Limitations & Next Steps
 
-**3-DOF only — no attitude dynamics, gimbal, or torque model; thrust acts as a free vector at the CoM.
-**Idealized sensors — Gaussian noise only; no bias, dropout, latency, or multi-sensor fusion.
+**-3-DOF only — no attitude dynamics, gimbal, or torque model; thrust acts as a free vector at the CoM.
+**-Idealized sensors — Gaussian noise only; no bias, dropout, latency, or multi-sensor fusion.
 **Downrange x unobservable — altitude-only sensing lets x estimate drift unbounded; needs a second position sensor (radar/lidar/GPS).
 **Linearized control only — LQR re-linearized each step from mass alone; no gain scheduling, robustness margins, or actuator delay modeling.
 **No in-flight replanning — guidance solves once offline; LQR just tracks it, so wind-induced errors are fought via feedback, not corrected via a new optimal path. Fix: MPC-style receding-horizon replanning (re-solve every 1–5s).
