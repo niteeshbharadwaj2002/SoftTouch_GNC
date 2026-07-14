@@ -117,4 +117,3 @@ What a production landing GNC stack would need beyond this prototype:
 
 **Author:** Niteesh Bharadwaj
 **License:** [MIT](LICENSE)
-**Contact:** `PLACEHOLDER`
