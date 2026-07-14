@@ -44,34 +44,16 @@ Three-layer pipeline, each layer owning a distinct responsibility and handing of
 ## Methodology
 
 ### Dynamics (`src/dynamics.py`)
-State vector `[x, y, vx, vy, m]` — downrange position, altitude, downrange velocity, vertical velocity, vehicle mass. Control input is thrust vector `[Tx, Ty]`. Equations of motion:
-
-```
-ẋ  = vx
-ẏ  = vy
-v̇x = Tx / m
-v̇y = Ty / m − g
-ṁ  = −‖T‖ / (Isp · g0)          (propellant mass flow via the rocket equation)
-```
-
-Integrated with 4th-order Runge-Kutta (RK4). Mass is floored at `DRY_MASS`; once fuel is exhausted, thrust is forced to zero.
+State `[x, y, vx, vy, m]`, thrust input `[Tx, Ty]`: `ẋ=vx, ẏ=vy, v̇x=Tx/m, v̇y=Ty/m−g, ṁ=−‖T‖/(Isp·g0)` (rocket equation). RK4 integration; mass floored at `DRY_MASS`, thrust zeroed once fuel is exhausted.
 
 ### Guidance (`src/optimiser.py`)
-The true minimum-fuel landing problem is non-convex, because the thrust-magnitude constraint `‖T‖ ≤ T_max` combined with a **lower** bound `‖T‖ ≥ T_min` (engines can't throttle to zero) is not a convex set. The key technical idea — **lossless convexification** — introduces a slack variable `Γ` for thrust magnitude, replaces `‖T‖ = Γ` with the relaxed second-order cone constraint `‖T‖ ≤ Γ`, and bounds `Γ` between `T_min` and `T_max` instead of bounding `‖T‖` directly. Açıkmeşe's result shows the relaxed problem's optimal solution satisfies `‖T‖ = Γ` exactly (active at the boundary), so nothing is lost — hence "lossless."
-
-- **Discretization:** fixed-final-time, zero-order-hold Euler discretization over `N` steps (`N=120`, `dt=0.5s` by default — 60s horizon).
-- **Cost function:** maximize final mass `m[N]`, equivalent to minimizing total fuel burned.
-- **Constraints:** initial state, terminal soft-landing state (position + zero velocity), ground constraint (`y ≥ 0`), dry-mass floor, and the SOC thrust-bound constraint per timestep.
-- **Nonlinear coupling:** the dynamics constraint `v̇ = T/m` divides by the mass variable, which is itself an optimization variable — this is handled via **successive convexification**: the mass trajectory is initialized from a rough burn-rate estimate, the convex subproblem is solved with that trajectory held as a fixed nominal, and the solve is repeated (up to `max_iters=3`) using the newly solved mass profile as the next nominal, until the mass trajectory converges (`< tol` change).
-- **Solver:** CVXPY with the CLARABEL interior-point SOCP solver.
+Minimum-fuel landing is non-convex because thrust needs both an upper **and** lower bound (`T_min ≤ ‖T‖ ≤ T_max`, engines can't throttle to zero). **Lossless convexification** (Açıkmeşe & Blackmore) fixes this: slack variable `Γ` replaces `‖T‖=Γ` with the convex cone constraint `‖T‖≤Γ`, bounded between `T_min`/`T_max` instead — tight at the optimum, nothing lost. Fixed-final-time discretization (`N=120`, `dt=0.5s`); objective maximizes final mass; constraints cover boundary conditions, ground contact, dry-mass floor, per-step thrust bound. Mass-dependent dynamics are handled via **successive convexification**: solve with a fixed nominal mass profile, update it from the result, repeat (`max_iters=3`) to convergence. Solved with CVXPY/CLARABEL.
 
 ### Control (`src/controls.py`)
-Closed-loop tracking is done with a **Linear-Quadratic Regulator (LQR)**, not a PID loop. At each step the position/velocity dynamics are linearized about the current mass (`A`, `B` matrices for the double-integrator `[x,y,vx,vy]` system), the continuous-time algebraic Riccati equation is solved for that mass to get gain `K`, and the correction `K · (planned_state − actual_state)` is added on top of the feedforward planned thrust from Guidance. The corrected command is then clipped to `[T_min, T_max]`. Recomputing `K` from the current mass at every step means the gain adapts as the vehicle burns propellant.
-
-Disturbance rejection is tested by injecting a constant horizontal wind force (`3000 N`) over a fixed window of the descent (`main.py`), applied to the true dynamics but invisible to the controller's plant model — the controller only sees it indirectly through the resulting state error.
+An **LQR**, not PID: dynamics are linearized about current mass each step, the Riccati equation gives gain `K`, and `K·(planned−actual)` is added to Guidance's feedforward thrust, clipped to `[T_min, T_max]`. Recomputing `K` each step lets the gain adapt as propellant burns. Disturbance rejection is tested via wind force injected over a fixed window, unseen by the controller except through resulting error.
 
 ### State Estimation (`src/kalman.py`)
-A linear Kalman filter estimates `[x, y, vx, vy]` from two noisy sensors: an accelerometer (measures specific force, used in the predict step with gravity added back explicitly since accelerometers don't sense gravity) and an altimeter (measures `y` only, used in the update step). Because only altitude is directly observed, downrange position `x` is **unobservable** in this sensor configuration — the filter's `x`-estimate can drift over long flights, which is intentional/expected and is called out in the console output (`main.py` prints x-error as "unobserved — expect large/drifting" vs. y-error "observed — expect small"). Sensor noise is Gaussian, configured via `ALTIMETER_NOISE_STD` and `ACCELEROMETER_NOISE_STD` in `config/parameters.py`.
+A linear Kalman filter estimates `[x, y, vx, vy]` from a noisy accelerometer (predict) and altimeter (update, altitude only). Since only altitude is observed, `x` is **unobservable** and can drift over long flights — by design, and called out explicitly in console output rather than hidden.
 
 ## Results
 
