@@ -80,17 +80,12 @@ Run tests: `pytest tests/`
 
 ## Limitations & Next Steps
 
-What a production landing GNC stack would need beyond this prototype:
-
-- **3-DOF only, no attitude dynamics.** No rotation, no gimbal/torque model, no angular rate control — thrust is applied as a free vector at the center of mass instead of through a physically constrained engine gimbal.
-- **No 6-DOF rigid-body coupling.** Real vehicles couple translational and rotational dynamics; this sim treats them as fully decoupled by omission.
-- **Idealized sensor model.** Gaussian noise only, no bias/drift, no sensor dropout or latency, no GPS/radar altimeter fusion beyond the single altimeter channel.
-- **Downrange position is unobservable.** With altitude-only measurement, `x` estimation drifts unbounded over long flights — a real system would add a second position-observing sensor (e.g., radar, lidar, or GPS).
-- **Linearized control around a nominal, not gain-scheduled or robust.** LQR is re-linearized each step from current mass only; no robustness margin analysis, no handling of actuator dynamics/delay.
-- **Guidance solves once, offline — no replanning in flight.** Guidance computes one fixed reference trajectory before launch; LQR only tracks it, never recomputes it. When wind pushes the vehicle off track, the controller fights back with whatever thrust and altitude remain, and horizontal correction competes with vertical braking for the same capped thrust budget — so disturbed flights can land off-target and still moving. Gain tuning shifts priority between axes but can't invent a new optimal path from wherever the wind left it.
-
-  **Real fix:** receding-horizon (MPC-style) replanning — re-solve the convex guidance problem every 1-5s from the current estimated state, so disturbances get absorbed into a fresh optimal trajectory instead of just chased by feedback.
-- **Fixed final time.** The guidance horizon (`N`, `dt`) is set a priori rather than solved for as a free variable (minimum-time or minimum-fuel-with-free-time formulations).
+**3-DOF only — no attitude dynamics, gimbal, or torque model; thrust acts as a free vector at the CoM.
+**Idealized sensors — Gaussian noise only; no bias, dropout, latency, or multi-sensor fusion.
+**Downrange x unobservable — altitude-only sensing lets x estimate drift unbounded; needs a second position sensor (radar/lidar/GPS).
+**Linearized control only — LQR re-linearized each step from mass alone; no gain scheduling, robustness margins, or actuator delay modeling.
+**No in-flight replanning — guidance solves once offline; LQR just tracks it, so wind-induced errors are fought via feedback, not corrected via a new optimal path. Fix: MPC-style receding-horizon replanning (re-solve every 1–5s).
+**Fixed final time — horizon (N, dt) is preset, not solved as a free variable (no min-time/min-fuel formulation).
 
 ## Repo Structure
 
