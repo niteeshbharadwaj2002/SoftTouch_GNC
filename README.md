@@ -81,7 +81,6 @@ Run tests: `pytest tests/`
 ## Limitations & Next Steps
 
 - **3-DOF only** — no attitude dynamics, gimbal, or torque model; thrust acts as a free vector at the CoM.
-- **No 6-DOF coupling** — translation and rotation treated as fully decoupled.
 - **Idealized sensors** — Gaussian noise only; no bias, dropout, latency, or multi-sensor fusion.
 - **Downrange `x` unobservable** — altitude-only sensing lets `x` estimate drift unbounded; needs a second position sensor (radar/lidar/GPS).
 - **Linearized control only** — LQR re-linearized each step from mass alone; no gain scheduling, robustness margins, or actuator delay modeling.
