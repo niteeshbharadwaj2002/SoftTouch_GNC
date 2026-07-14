@@ -41,20 +41,6 @@ Three-layer pipeline, each layer owning a distinct responsibility and handing of
 - **Dynamics** (`src/dynamics.py`) propagates the true rocket state forward under the commanded thrust plus any external disturbance (wind), via RK4 integration of the nonlinear equations of motion.
 - **Estimation** (`src/kalman.py`) sits between Dynamics and Control in the closed loop: it takes noisy sensor readings of the true state and produces the filtered state estimate that Control actually acts on.
 
-## Methodology
-
-### Dynamics (`src/dynamics.py`)
-State `[x, y, vx, vy, m]`, thrust input `[Tx, Ty]`: `ẋ=vx, ẏ=vy, v̇x=Tx/m, v̇y=Ty/m−g, ṁ=−‖T‖/(Isp·g0)` (rocket equation). RK4 integration; mass floored at `DRY_MASS`, thrust zeroed once fuel is exhausted.
-
-### Guidance (`src/optimiser.py`)
-Minimum-fuel landing is non-convex because thrust needs both an upper **and** lower bound (`T_min ≤ ‖T‖ ≤ T_max`, engines can't throttle to zero). **Lossless convexification** (Açıkmeşe & Blackmore) fixes this: slack variable `Γ` replaces `‖T‖=Γ` with the convex cone constraint `‖T‖≤Γ`, bounded between `T_min`/`T_max` instead — tight at the optimum, nothing lost. Fixed-final-time discretization (`N=120`, `dt=0.5s`); objective maximizes final mass; constraints cover boundary conditions, ground contact, dry-mass floor, per-step thrust bound. Mass-dependent dynamics are handled via **successive convexification**: solve with a fixed nominal mass profile, update it from the result, repeat (`max_iters=3`) to convergence. Solved with CVXPY/CLARABEL.
-
-### Control (`src/controls.py`)
-An **LQR**, not PID: dynamics are linearized about current mass each step, the Riccati equation gives gain `K`, and `K·(planned−actual)` is added to Guidance's feedforward thrust, clipped to `[T_min, T_max]`. Recomputing `K` each step lets the gain adapt as propellant burns. Disturbance rejection is tested via wind force injected over a fixed window, unseen by the controller except through resulting error.
-
-### State Estimation (`src/kalman.py`)
-A linear Kalman filter estimates `[x, y, vx, vy]` from a noisy accelerometer (predict) and altimeter (update, altitude only). Since only altitude is observed, `x` is **unobservable** and can drift over long flights — by design, and called out explicitly in console output rather than hidden.
-
 ## Results
 
 | Metric | Value |
