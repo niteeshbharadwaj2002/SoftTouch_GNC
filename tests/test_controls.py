@@ -257,9 +257,7 @@ def test_wind_gust_causes_temporary_deviation_then_recovers(controller, dynamics
 
 
 def test_wind_gust_thrust_stays_within_bounds(controller, dynamics, guidance_plan):
-    """Even while actively rejecting a gust, commanded thrust (logged
-    pre-wind, i.e. what the engine itself commanded) must stay within
-    actuator limits."""
+
     planned_states, planned_controls, dt = guidance_plan
     n_steps = len(planned_controls)
     gust_start, gust_end = n_steps // 3, n_steps // 2
@@ -279,9 +277,7 @@ def test_wind_gust_thrust_stays_within_bounds(controller, dynamics, guidance_pla
 
 
 def test_strong_gust_does_not_crash_simulation(controller, dynamics, guidance_plan):
-    """Even an aggressive gust should not raise an exception — either the
-    controller compensates or the rocket lands off-target, but the sim
-    must complete."""
+
     planned_states, planned_controls, dt = guidance_plan
     n_steps = len(planned_controls)
 

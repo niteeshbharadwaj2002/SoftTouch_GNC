@@ -10,8 +10,6 @@ ESTIMATED_COLOR = 'green'
 
 
 def _hold_last(arr, idx):
-    """Index into arr, clamping to the last row once idx exceeds its length —
-    lets shorter trajectories 'freeze' instead of crashing or cutting the animation short."""
     return arr[min(idx, len(arr) - 1)]
 
 

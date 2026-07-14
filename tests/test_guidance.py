@@ -1,7 +1,3 @@
-"""
-tests/test_guidance.py
-Validates GuidanceOptimizer under normal and edge-case conditions.
-"""
 
 import numpy as np
 import pytest

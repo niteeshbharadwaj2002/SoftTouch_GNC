@@ -5,12 +5,6 @@ from config import parameters as prm
 
 class LQRController:
     def __init__(self, Q=None, R=None):
-
-        # State order: [x, y, vx, vy]. y/vy (altitude/vertical speed) are
-        # already tracked tightly — they have to be, or the vehicle crashes —
-        # so x/vx (downrange position/velocity, the axis that actually drifts
-        # under wind) are weighted higher to claim more of the shared thrust
-        # budget whenever there's margin left over from vertical braking.
         self.Q = Q if Q is not None else np.diag([20.0, 10.0, 25.0, 15.0])
         self.R = R if R is not None else np.diag([0.001, 0.001])
         self.g = prm.G
@@ -34,8 +28,6 @@ class LQRController:
         return A, B
 
     def compute_gain(self, m):
-        """Solve the continuous-time algebraic Riccati equation for the
-        current mass and return the LQR gain K (2x4)."""
         A, B = self._linearize(m)
         P = solve_continuous_are(A, B, self.Q, self.R)
         K = np.linalg.inv(self.R) @ B.T @ P

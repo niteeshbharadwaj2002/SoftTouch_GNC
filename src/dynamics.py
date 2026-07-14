@@ -19,10 +19,6 @@ class RocketDynamics:
             Tx, Ty = 0.0, 0.0
             mdot = 0.0
         else:
-            # Propellant burn depends ONLY on the engine's own commanded
-            # thrust, never on external forces (wind). Wind pushes the
-            # vehicle around (it belongs in the acceleration below) but it
-            # doesn't come out of the propellant tank.
             thrust_mag = np.hypot(Tx, Ty)
             mdot = -thrust_mag / (self.isp * self.g0)
 
@@ -33,10 +29,6 @@ class RocketDynamics:
         return np.array([vx, vy, ax, ay, mdot])
 
     def step_rk4(self, state, control, dt, external_force=(0.0, 0.0)):
-        """Single RK4 integration step. `control` is engine thrust (drives
-        fuel burn); `external_force` (e.g. wind) affects acceleration only
-        and is held constant across the RK4 substeps, same zero-order-hold
-        assumption already used for `control`."""
         k1 = self.state_derivative(state, control, external_force)
         k2 = self.state_derivative(state + 0.5 * dt * k1, control, external_force)
         k3 = self.state_derivative(state + 0.5 * dt * k2, control, external_force)
@@ -137,10 +129,6 @@ class RocketDynamics:
             next_state = self.step_rk4(state_i, u_corrected, dt, external_force=disturbance)
             true_states.append(next_state)
 
-            # Sensors read the TRUE post-step state; accelerometer senses
-            # total applied force (thrust + wind), not just commanded thrust —
-            # that combined vector is only used here, for the sensor model,
-            # never for propellant accounting.
             total_force = np.asarray(u_corrected) + np.asarray(disturbance)
             accel_meas, alt_meas = sensor_model(
                 next_state, total_force, mass=state_i[4], rng=rng

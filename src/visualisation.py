@@ -259,10 +259,7 @@ def plot_mass_flow_rate(planned_states, actual_states=None, dt=0.1, save_path=No
 
 
 def plot_tracking_error(planned_states, actual_states, dt, save_path=None):
-    """
-    Position tracking error between guidance plan and actual (true) closed-
-    loop trajectory. Requires both — no meaningful "error" with one trajectory.
-    """
+
     n = min(len(planned_states), len(actual_states))
     t = np.arange(n) * dt
     error = np.hypot(
@@ -305,8 +302,7 @@ def plot_estimation_error(true_states, estimated_states, dt, save_path=None):
 def plot_summary(planned_states, planned_controls, dt, actual_states=None, actual_controls=None,
                   estimated_states=None, target=(0.0, 0.0), max_thrust=None, min_thrust=None,
                   dry_mass=None, save_path=None):
-    """One figure, multiple subplots — quick full-run overview. Works single-trajectory,
-    planned-vs-actual, or full planned-vs-actual-vs-estimated."""
+
     tp_states = np.arange(len(planned_states)) * dt
     planned_controls = np.asarray(planned_controls)
     tp_control = np.arange(len(planned_controls)) * dt
